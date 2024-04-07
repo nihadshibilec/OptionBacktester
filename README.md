@@ -32,7 +32,7 @@ Executes the trade strategy based on specified criteria.
 - `checkExitCriteria() Method:` Checks if the current market conditions meet the criteria for exiting a trade.
 - `add_exit_orders() Method:` Places orders for exiting a trade based on the current market conditions.
 - `convert_orders_to_trades() Method:` Converts orders placed during the strategy execution into trades.
-- `plot_cumulative_returns() Method:` Plot return of trades.
+- `plot_cumulative_returns() Method:` Plot return of trades and benchmark.
 - `report() Method:` Prints the basic reports of trades.
 
 ### Additional Tips
