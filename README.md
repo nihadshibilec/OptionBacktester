@@ -17,7 +17,7 @@ pip install pandas tqdm
 ## File Structure
 - **OptionBacktester.py:** Contains the implementation of the TradeStrategy class.
 - **sample_spot_data.csv:** Sample market data for testing the script.
-- **sample_options_data.csv:** Sample options data for testing the script.
+- **sample_options_data.csv:** Sample options data for testing the script. (not uploaded due to size limit)( here's the link to dataset: https://www.kaggle.com/datasets?new=true )
 
 Implementation Details
 ---
