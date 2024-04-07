@@ -32,6 +32,20 @@ Executes the trade strategy based on specified criteria.
 - `checkExitCriteria() Method:` Checks if the current market conditions meet the criteria for exiting a trade.
 - `add_exit_orders() Method:` Places orders for exiting a trade based on the current market conditions.
 - `convert_orders_to_trades() Method:` Converts orders placed during the strategy execution into trades.
+- `plot_cumulative_returns() Method:` Plot return of trades.
+- `report() Method:` Prints the basic reports of trades.
+
+### Additional Tips
+
+- If you want to change the time frame of data for backtesting, add this code to add_features function:
+```
+timeframe = '5min' # use '1D' for daily timeframe, 60min for hourly timeframe
+self.spot_data['currentdatetime'] = pd.to_datetime(self.spot_data['currentdate'] + ' ' + self.spot_data['currenttime'])
+self.spot_data.set_index('currentdatetime', inplace=True)
+self.spot_data = self.spot_data.resample(timeframe).agg({'currentdate': 'first','currenttime': 'first','open': 'first','high': 'max','low': 'min','close': 'last'}).reset_index()
+self.spot_data.drop(columns='currentdatetime', inplace=True)
+print("spot data converted to", timeframe, "timeframe")
+```
 
 ### Contributing
 Contributions are welcome! Feel free to submit pull requests or open issues.
