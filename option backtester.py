@@ -1,10 +1,9 @@
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 class TradeStrategy:
     def __init__(self, option_data, spot_data, strategy_name, lot_size, unique_dates):
-        options_data['currentdate'] = pd.to_datetime(options_data['currentdate'])
-        options_data['Expiry_Date'] = pd.to_datetime(options_data['Expiry_Date'])
         self.strategy_name = strategy_name
         self.spot_data = spot_data
         self.option_data = option_data
@@ -39,21 +38,22 @@ class TradeStrategy:
         total_trade_count = 0
         for date in tqdm(self.unique_dates, total=len(self.unique_dates), desc="Backtesting", ncols=150):
             date = pd.to_datetime(date)
-            # print(date)
             filtered_option_data = self.option_data[self.option_data['currentdate']==date]
+            # print(filtered_option_data)
             filtered_option_data = filtered_option_data.sort_values(by='Expiry_Date')
             self.expiry_date = filtered_option_data['Expiry_Date'].iloc[0]
             filtered_spot_data = self.spot_data[self.spot_data['currentdate']== date]
             filtered_spot_data = filtered_spot_data.reset_index()
             for index, row in filtered_spot_data.iterrows():
-                if index == 0: continue
-                if trade_status == True:
+                if index == 0: continue # skip the first candle
+
+                if trade_status == True : # If  
                     exit_condition = self.checkExitCriteria(row,trade_id)
-                    if exit_condition == True:
+                    if exit_condition ==True or index == filtered_spot_data.index.max(): #Exit Trades if exit condition is met or market is closed
                         self.add_exit_orders(row,trade_id)
                         trade_status = False
                 
-                if trade_status == False:
+                if trade_status == False or not index == filtered_spot_data.index.max(): #Check for Entry Condition if no trade is active or market is not closed
                     entry_condition = self.checkEntryCriteria(row)
                     if entry_condition == True:
                         total_trade_count += 1
@@ -163,7 +163,56 @@ class TradeStrategy:
         trades_df = pd.DataFrame(trades)
         trades_df = trades_df.sort_values(by=['EntryDate', 'EntryType'])
         return trades_df
+    
+    def plot_cumulative_returns(self, trades, capital_per_trade):
+        trades['Return'] = trades['PnL']/capital_per_trade
+        strategy_returns = trades.groupby('EntryDate')['Return'].sum().reset_index() # Calculate daily return
+        daily_data = self.spot_data.groupby('currentdate').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'}).reset_index()
+        daily_data['Return'] = daily_data['close'].pct_change()  # Calculating returns as percentage
+        daily_data['Return'] = daily_data['Return'].fillna(0)
+        strategy_returns['Benchmark'] = daily_data['Return']
+        # Calculate cumulative returns
+        strategy_returns['Cumulative_Return'] = strategy_returns['Return'].cumsum()
+        strategy_returns['Cumulative_Benchmark'] = strategy_returns['Benchmark'].cumsum()
+        # Plotting
+        plt.figure(figsize=(10, 6))
 
+        plt.plot(strategy_returns['EntryDate'], strategy_returns['Cumulative_Return'], marker='o', label='Cumulative Return', color='blue')
+        plt.plot(strategy_returns['EntryDate'], strategy_returns['Cumulative_Benchmark'], marker='o', label='Cumulative Benchmark', color='red')
+
+        plt.title('Cumulative Return vs. Cumulative Benchmark')
+        plt.xlabel('EntryDate')
+        plt.ylabel('Cumulative Value')
+        plt.legend()
+        plt.grid(True)
+        plt.xticks(rotation=45)
+
+        plt.tight_layout()
+        plt.show()
+    
+    def report(self, trades, capital_per_trade):
+        trades['Return'] = trades['PnL']/capital_per_trade
+        total_return = trades['Return'].sum()
+        wins = (trades['Return'] >= 0).sum()
+        loss = (trades['Return'] < 0).sum()
+        Winrate = wins/(wins+loss)
+        avg_wins = trades.loc[trades['Return'] > 0, 'Return'].mean()
+        avg_loss = trades.loc[trades['Return'] < 0, 'Return'].mean()
+        
+        #Drawdown
+        trades['cumulative_return'] = trades['Return'].cumsum()
+        drawdown = trades['cumulative_return'] - trades['cumulative_return'].cummax()
+        max_drawdown = drawdown.min()
+
+        pnl_to_dd = total_return/-max_drawdown
+        print("Total return             : ", str(round(total_return,3)*100) + "%")
+        print("Max drawdown             : ", str(round(max_drawdown,3)*100) + "%")
+        print("Return/Max drawdown      : ", round(pnl_to_dd,3))
+        print("Daily Wins               : ", wins)
+        print("Daily losses             : ", loss)
+        print("Winrate                  : ", str(round(Winrate,3)*100) + "%")
+        print("Average Wins             : ", str(round(avg_wins,3)*100) + "%")
+        print("Average losses           : ", str(round(avg_loss,3)*100) + "%")
 
 ### Processing Market Data ### 
 spot_file_path = "sample_spot_data.csv"
@@ -171,11 +220,13 @@ option_data_file_path = "sample_options_data.csv"
 spot_data = pd.read_csv(spot_file_path)
 spot_data['currentdate'] = pd.to_datetime(spot_data['currentdate'])
 options_data = pd.read_csv(option_data_file_path)
+options_data['currentdate'] = pd.to_datetime(options_data['currentdate'])
+options_data['Expiry_Date'] = pd.to_datetime(options_data['Expiry_Date'])
 ################################################################
 
 unique_days=spot_data['currentdate'].dt.date.unique()
 
 strategy = TradeStrategy(option_data = options_data, spot_data=spot_data, strategy_name="test", lot_size =100, unique_dates = unique_days)
 trades = strategy.run_strategy()
-print(trades)
-
+strategy.plot_cumulative_returns(trades=trades, capital_per_trade= 300000)
+strategy.report(trades, 300000)
